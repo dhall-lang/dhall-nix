@@ -9,8 +9,8 @@
 }:
 mkDerivation {
   pname = "dhall";
-  version = "1.16.0";
-  sha256 = "95a1a312f5fc9a61794e0b8d4b32dd7d705a06c0d9e3c06e04b5a47b39307329";
+  version = "1.16.1";
+  sha256 = "02a69a5d6c61b646a3a3822f6e077c2d298624baa142148af108bfe004e9c0d5";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
