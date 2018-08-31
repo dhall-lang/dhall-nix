@@ -12,7 +12,7 @@
 mkDerivation {
   pname = "dhall";
   version = "1.17.0";
-  src = ../../dhall-haskell;
+  sha256 = "a029fea856224a79f0b7cc56fbb5c566d0dfd1d915d214f682006cabf1274791";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
