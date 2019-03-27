@@ -97,6 +97,7 @@ import Control.Applicative (empty)
 import Control.Exception (Exception)
 import Data.Foldable (toList)
 import Data.Fix (Fix(..))
+import Data.Traversable (for)
 import Data.Typeable (Typeable)
 import Dhall.Core (Chunks(..), Const(..), Expr(..), Var(..))
 import Dhall.TypeCheck (X(..))
@@ -111,9 +112,9 @@ import Nix.Expr
     , Params(..)
     )
 
-import qualified Data.HashMap.Strict.InsOrd
 import qualified Data.Text
 import qualified Dhall.Core
+import qualified Dhall.Map
 import qualified NeatInterpolation
 import qualified Nix
 
@@ -220,14 +221,19 @@ dhallToNix e = loop (Dhall.Core.normalize e)
         c' <- loop c
         return (Fix (NAbs (Param a) c'))
     loop (Pi _ _ _) = return (Fix (NSet []))
+    -- None needs a type to convert to an Optional
+    loop (App None _) = do
+      return (Fix (NConstant NNull))
     loop (App a b) = do
         a' <- loop a
         b' <- loop b
         return (Fix (NBinary NApp a' b'))
-    loop (Let a _ c d) = do
-        c' <- loop c
-        d' <- loop d
-        return (Fix (NLet [NamedVar [StaticKey a] c' Nix.nullPos] d'))
+    loop (Let as b) = do
+        as' <- for as $ \a -> do
+          val <- loop $ Dhall.Core.value a
+          pure $ NamedVar [StaticKey $ Dhall.Core.variable a] val Nix.nullPos
+        b' <- loop b
+        return (Fix (NLet (toList as') b'))
     loop (Annot a _) = loop a
     loop Bool = return (Fix (NSet []))
     loop (BoolLit b) = return (Fix (NConstant (NBool b)))
@@ -387,6 +393,8 @@ dhallToNix e = loop (Dhall.Core.normalize e)
         case b of
             Nothing -> return (Fix (NConstant NNull))
             Just c  -> loop c
+    loop (Some a) = loop a
+    loop None = return (Fix (NConstant NNull))
     loop OptionalFold = do
         let e0 = Fix (NBinary NEq "x" (Fix (NConstant NNull)))
         let e1 = Fix (NIf e0 "nothing" (Fix (NBinary NApp "just" "x")))
@@ -404,14 +412,14 @@ dhallToNix e = loop (Dhall.Core.normalize e)
     loop (RecordLit a) = do
         a' <- traverse loop a
         let a'' = do
-                (k, v) <- Data.HashMap.Strict.InsOrd.toList a'
+                (k, v) <- Dhall.Map.toList a'
                 return (NamedVar [StaticKey k] v Nix.nullPos)
         return (Fix (NSet a''))
     loop (Union _) = return (Fix (NSet []))
     loop (UnionLit k v kts) = do
         v' <- loop v
         let e0 = do
-                k' <- k : Data.HashMap.Strict.InsOrd.keys kts
+                k' <- k : Dhall.Map.keys kts
                 return (k', Nothing)
         let e2 = Fix (NBinary NApp (Fix (NSym k)) v')
         return (Fix (NAbs (ParamSet e0 False Nothing) e2))

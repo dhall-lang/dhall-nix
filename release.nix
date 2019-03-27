@@ -135,6 +135,8 @@ in
             → if b then just 1 else nothing
             )
         '';
+        testNone = dhallToNix "None Natural";
+        testSome = dhallToNix "Some 4";
         testRecord = dhallToNix "{}";
         testRecordLit = dhallToNix "{ foo = 1, bar = True}";
         testUnion = dhallToNix "< Left : Natural | Right : Bool >";
