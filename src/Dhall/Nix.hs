@@ -56,9 +56,6 @@
 > $ dhall-to-nix <<< "< Left = True | Right : Natural >"
 > { Left, Right }: Left true
 
-    `Dhall.Core.Double`s cannot be translated to Nix at all since Nix does not
-    support floating point values.
-
     Also, all Dhall expressions are normalized before translation to Nix:
 
 > $ dhall-to-nix <<< "True == False"
@@ -124,8 +121,6 @@ import qualified Nix
 data CompileError
     = CannotReferenceShadowedVariable Var
     -- ^ Nix does not provide a way to reference a shadowed variable
-    | UnexpectedConstructorsKeyword
-    -- ^ The @constructors@ keyword is not yet supported
     deriving (Typeable)
 
 instance Show CompileError where
@@ -180,20 +175,6 @@ Nix
 |]
       where
         txt = Dhall.Core.pretty v
-
-    show UnexpectedConstructorsKeyword =
-        Data.Text.unpack [NeatInterpolation.text|
-$_ERROR: Unexpected ❰constructors❱ keyword
-
-Explanation: The dhallToNix Haskell API function has a precondition that the
-Dhall expression to translate to Nix must have already been type-checked.  This
-precondition ensures that the normalized expression will have no remaining
-❰constructors❱ keywords.
-
-However, the dhallToNix Haskell API function was called with a Dhall expression
-that still had a ❰constructors❱ keyword, which indicates that the expression had
-not yet been type-checked.
-|]
 
 _ERROR :: Data.Text.Text
 _ERROR = "\ESC[1;31mError\ESC[0m"
@@ -469,8 +450,6 @@ dhallToNix e = loop (Dhall.Core.normalize e)
         a' <- loop a
         b' <- loop b
         return (Fix (NBinary NApp b' a'))
-    loop (Constructors _) = do
-        Left UnexpectedConstructorsKeyword
     loop (Prefer a b) = do
         a' <- loop a
         b' <- loop b
