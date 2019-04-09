@@ -107,6 +107,9 @@ import Nix.Expr
     , NKeyName(..)
     , NString(..)
     , Params(..)
+    , (@@)
+    , (==>)
+    , ($+)
     )
 
 import qualified Data.Text
@@ -317,6 +320,37 @@ dhallToNix e = loop (Dhall.Core.normalize e)
         a' <- loop a
         b' <- loop b
         return (Fix (NBinary NPlus a' b'))
+    loop TextShow = do
+        let from =
+                Nix.mkList
+                    [ Nix.mkStr "\""
+                    , Nix.mkStr "$"
+                    , Nix.mkStr "\\"
+                 -- Nix doesn't support \b and \f
+                 -- , Nix.mkStr "\b"
+                 -- , Nix.mkStr "\f"
+                    , Nix.mkStr "\n"
+                    , Nix.mkStr "\r"
+                    , Nix.mkStr "\t"
+                    ]
+
+        let to =
+                Nix.mkList
+                    [ Nix.mkStr "\\\""
+                    , Nix.mkStr "\\u0024"
+                    , Nix.mkStr "\\\\"
+                 -- , Nix.mkStr "\\b"
+                 -- , Nix.mkStr "\\f"
+                    , Nix.mkStr "\\n"
+                    , Nix.mkStr "\\r"
+                    , Nix.mkStr "\\t"
+                    ]
+
+        let replaced = "builtins.replaceStrings" @@ from @@ to @@ "t"
+
+        let quoted = Nix.mkStr "\"" $+ replaced $+ Nix.mkStr "\""
+
+        return ("t" ==> quoted)
     loop List = return (Fix (NAbs "t" (Fix (NSet []))))
     loop (ListAppend a b) = do
         a' <- loop a
